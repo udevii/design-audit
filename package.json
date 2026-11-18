@@ -1,0 +1,18 @@
+{
+  "name": "design-audit",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A Figma plugin that audits selected frames for design-system and accessibility issues, with optional AI explanations.",
+  "scripts": {
+    "build": "esbuild src/code.ts --bundle --target=es2017 --outfile=dist/code.js",
+    "watch": "npm run build -- --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test test/*.test.ts"
+  },
+  "devDependencies": {
+    "@figma/plugin-typings": "1.113.0",
+    "esbuild": "0.25.5",
+    "tsx": "4.19.4",
+    "typescript": "5.8.3"
+  }
+}

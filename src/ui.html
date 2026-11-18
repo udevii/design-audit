@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  /* Uses Figma's theme variables so the plugin matches light and dark Figma. */
+  :root {
+    --bg: var(--figma-color-bg, #fff);
+    --bg-2: var(--figma-color-bg-secondary, #f5f5f5);
+    --text: var(--figma-color-text, #1e1e1e);
+    --muted: var(--figma-color-text-secondary, #757575);
+    --line: var(--figma-color-border, #e6e6e6);
+    --brand: var(--figma-color-bg-brand, #0d99ff);
+    --on-brand: var(--figma-color-text-onbrand, #fff);
+    --error: var(--figma-color-text-danger, #dc3412);
+    --warning: var(--figma-color-text-warning, #b86200);
+    --info: var(--figma-color-text-secondary, #757575);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 12px/1.45 Inter, "Segoe UI", system-ui, sans-serif; color: var(--text); background: var(--bg); }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+  header { position: sticky; top: 0; z-index: 2; background: var(--bg); border-bottom: 1px solid var(--line); padding: 12px; display: grid; gap: 10px; }
+  .title { display: flex; align-items: center; justify-content: space-between; }
+  h1 { font-size: 13px; margin: 0; font-weight: 600; }
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .seg button { flex: 1; border: 0; background: none; padding: 6px; color: var(--muted); }
+  .seg button[aria-pressed="true"] { background: var(--bg-2); color: var(--text); font-weight: 600; }
+  .row { display: flex; gap: 8px; }
+  .primary { flex: 1; border: 0; border-radius: 6px; padding: 8px 12px; background: var(--brand); color: var(--on-brand); font-weight: 600; }
+  .ghost { border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 5px 9px; }
+  .ghost:hover { background: var(--bg-2); }
+  details { border: 1px solid var(--line); border-radius: 6px; }
+  summary { padding: 6px 9px; cursor: pointer; color: var(--muted); }
+  .settings { padding: 4px 9px 10px; display: grid; gap: 8px; }
+  .settings label { display: grid; gap: 4px; color: var(--muted); }
+  .settings input, .settings select { border: 1px solid var(--line); border-radius: 5px; padding: 6px; background: var(--bg); }
+  .note { color: var(--muted); font-size: 11px; }
+  main { padding: 12px; display: grid; gap: 12px; }
+  .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .tile { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+  .tile b { display: block; font-size: 18px; font-variant-numeric: tabular-nums; }
+  .tile.error b { color: var(--error); } .tile.warning b { color: var(--warning); }
+  .filters { display: flex; flex-wrap: wrap; gap: 6px; }
+  .filters button { border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 3px 9px; }
+  .filters button[aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
+  ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .issue { border: 1px solid var(--line); border-left-width: 3px; border-radius: 6px; padding: 9px 10px; display: grid; gap: 6px; }
+  .issue.error { border-left-color: var(--error); } .issue.warning { border-left-color: var(--warning); } .issue.info { border-left-color: var(--line); }
+  .meta { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 11px; }
+  .sev { font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+  .sev.error { color: var(--error); } .sev.warning { color: var(--warning); }
+  .msg { font-weight: 500; }
+  .path { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .actions { display: flex; flex-wrap: wrap; gap: 6px; }
+  .fix { border: 1px solid var(--brand); color: var(--brand); background: none; border-radius: 6px; padding: 5px 9px; font-weight: 600; }
+  .explain { background: var(--bg-2); border-radius: 6px; padding: 8px 10px; display: grid; gap: 6px; }
+  .explain h3 { margin: 0; font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+  .explain p { margin: 0; }
+  .empty { text-align: center; color: var(--muted); padding: 28px 12px; display: grid; gap: 6px; }
+  .empty b { color: var(--text); font-size: 13px; }
+  .banner { border-radius: 6px; padding: 8px 10px; background: var(--bg-2); }
+  .banner.error { color: var(--error); }
+</style>
+</head>
+<body>
+<header>
+  <div class="title">
+    <h1>Design Audit</h1>
+    <span class="note" id="status"></span>
+  </div>
+  <div class="seg" role="group" aria-label="What to scan">
+    <button type="button" id="scope-selection" aria-pressed="true">Selection</button>
+    <button type="button" id="scope-page" aria-pressed="false">Whole page</button>
+  </div>
+  <div class="row"><button type="button" class="primary" id="scan">Scan selection</button></div>
+  <details>
+    <summary>Settings</summary>
+    <div class="settings">
+      <label for="grid">Spacing grid
+        <select id="grid"><option value="4">4px</option><option value="8">8px</option></select>
+      </label>
+      <label for="key">Anthropic API key (optional)
+        <input id="key" type="password" autocomplete="off" placeholder="sk-ant-…">
+      </label>
+      <p class="note">Stored only on this device. Used only when you click “Explain with AI” on an issue, and only that issue's details are sent.</p>
+      <div><button type="button" class="ghost" id="save">Save settings</button></div>
+    </div>
+  </details>
+</header>
+<main id="main" aria-live="polite">
+  <div class="empty">
+    <b>Check a design before handoff</b>
+    <span>Select frames or components, then scan. Design Audit flags low text contrast, raw colors, unstyled text, off-grid spacing, odd corner radii, default layer names, detached components and small tap targets.</span>
+  </div>
+</main>
+
+<script>
+const LABELS = { contrast: "Text contrast", color: "Raw colors", "text-style": "Text styles", spacing: "Spacing grid", radius: "Corner radius", naming: "Layer names", detached: "Detached components", hidden: "Hidden layers", "tap-target": "Tap targets" };
+let model = null; // picked from the models list the first time
+const state = { scope: "selection", selection: 0, apiKey: "", grid: 4, issues: [], context: {}, styles: { colors: [], texts: [] }, stats: null, filter: "all", open: {}, ai: {}, error: "" };
+const $ = (id) => document.getElementById(id);
+const send = (msg) => parent.postMessage({ pluginMessage: msg }, "*");
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function setScope(scope) {
+  state.scope = scope;
+  $("scope-selection").setAttribute("aria-pressed", scope === "selection");
+  $("scope-page").setAttribute("aria-pressed", scope === "page");
+  updateScanLabel();
+}
+function updateScanLabel() {
+  $("scan").textContent = state.scope === "page" ? "Scan whole page" : state.selection ? `Scan ${state.selection} selected` : "Scan selection";
+}
+
+$("scope-selection").onclick = () => setScope("selection");
+$("scope-page").onclick = () => setScope("page");
+$("scan").onclick = () => { state.error = ""; $("status").textContent = "Scanning…"; send({ type: "scan", scope: state.scope, options: { grid: state.grid } }); };
+$("save").onclick = () => {
+  state.apiKey = $("key").value.trim();
+  state.grid = Number($("grid").value);
+  send({ type: "save-settings", apiKey: state.apiKey, grid: state.grid });
+};
+
+function counts() {
+  const c = { error: 0, warning: 0, info: 0 };
+  state.issues.forEach((i) => c[i.severity]++);
+  return c;
+}
+
+function render() {
+  const main = $("main");
+  if (state.error) { main.innerHTML = `<div class="banner error" role="alert">${esc(state.error)}</div>`; return; }
+  if (!state.stats) return;
+  const c = counts();
+  const byRule = {};
+  state.issues.forEach((i) => (byRule[i.rule] = (byRule[i.rule] || 0) + 1));
+  const shown = state.filter === "all" ? state.issues : state.issues.filter((i) => i.rule === state.filter);
+
+  let html = `<div class="summary">
+    <div class="tile error"><b>${c.error}</b>Errors</div>
+    <div class="tile warning"><b>${c.warning}</b>Warnings</div>
+    <div class="tile"><b>${c.info}</b>Notes</div>
+  </div>
+  <p class="note">${state.stats.layers} layers checked${state.stats.truncated ? " (stopped at the limit; scan a smaller selection for the rest)" : ""}. Fixes only run when you click them, and ⌘Z undoes each one.</p>`;
+
+  if (!state.issues.length) {
+    html += `<div class="empty"><b>No issues found</b><span>This selection follows every rule Design Audit checks.</span></div>`;
+    main.innerHTML = html;
+    return;
+  }
+
+  html += `<div class="filters" role="group" aria-label="Filter by rule">
+    <button type="button" data-filter="all" aria-pressed="${state.filter === "all"}">All ${state.issues.length}</button>
+    ${Object.keys(byRule).map((r) => `<button type="button" data-filter="${r}" aria-pressed="${state.filter === r}">${LABELS[r]} ${byRule[r]}</button>`).join("")}
+  </div><ul>`;
+
+  for (const i of shown) {
+    const open = state.open[i.key];
+    const ai = state.ai[i.key];
+    html += `<li class="issue ${i.severity}">
+      <div class="meta"><span class="sev ${i.severity}">${i.severity === "info" ? "Note" : i.severity}</span><span>${LABELS[i.rule]}</span></div>
+      <div class="msg">${esc(i.message)}</div>
+      <div class="path" title="${esc(i.path)}">${esc(i.path)}</div>
+      <div class="actions">
+        <button type="button" class="ghost" data-select="${i.key}">Select layer</button>
+        ${i.fix ? `<button type="button" class="fix" data-fix="${i.key}">${esc(i.fix.label)}</button>` : ""}
+        <button type="button" class="ghost" data-explain="${i.key}" aria-expanded="${!!open}">${open ? "Hide why" : "Why?"}</button>
+      </div>
+      ${open ? `<div class="explain">
+        <h3>Why it matters</h3><p>${esc(i.why)}</p>
+        ${ai && ai.status === "loading" ? `<p class="note">Asking AI about this layer…</p>`
+          : ai && ai.status === "done" ? `<h3>AI explanation for this layer</h3><p>${esc(ai.explanation)}</p><h3>Suggested fix</h3><p>${esc(ai.suggestion)}</p><p class="note">Confidence: ${esc(ai.confidence)}. Review before applying; nothing changes until you do.</p>`
+          : ai && ai.status === "error" ? `<p class="note">${esc(ai.message)}</p>`
+          : state.apiKey ? `<div><button type="button" class="ghost" data-ai="${i.key}">Explain with AI and suggest a fix</button></div>`
+          : `<p class="note">Add an API key in Settings to get an AI explanation and fix for this layer.</p>`}
+      </div>` : ""}
+    </li>`;
+  }
+  main.innerHTML = html + "</ul>";
+}
+
+$("main").addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  const find = (k) => state.issues.find((i) => i.key === k);
+  if (b.dataset.filter) { state.filter = b.dataset.filter; render(); }
+  else if (b.dataset.select) send({ type: "select", nodeId: find(b.dataset.select).nodeId });
+  else if (b.dataset.fix) { $("status").textContent = "Applying…"; send({ type: "fix", issue: find(b.dataset.fix) }); }
+  else if (b.dataset.explain) { state.open[b.dataset.explain] = !state.open[b.dataset.explain]; render(); }
+  else if (b.dataset.ai) askAI(find(b.dataset.ai));
+});
+
+async function pickModel(headers) {
+  if (model) return model;
+  const res = await fetch("https://api.anthropic.com/v1/models?limit=50", { headers });
+  if (!res.ok) throw new Error(res.status === 401 ? "The API key was rejected. Check it in Settings." : `Couldn't load models (${res.status}).`);
+  const { data } = await res.json();
+  model = (data.find((m) => m.id.includes("haiku")) || data[0]).id;
+  return model;
+}
+
+async function askAI(issue) {
+  state.ai[issue.key] = { status: "loading" };
+  render();
+  const node = state.context[issue.nodeId];
+  const prompt = [
+    "You are a senior product designer reviewing a Figma file with a design-system mindset.",
+    "An automated rule flagged the issue below. In plain language, explain why it matters for THIS layer, then give the single best fix.",
+    "Be concrete: name the existing style, token or value to use when one fits. Never invent styles that aren't listed.",
+    "",
+    `Rule: ${LABELS[issue.rule]}`,
+    `Issue: ${issue.message}`,
+    `Layer path: ${issue.path}`,
+    `Layer details: ${JSON.stringify(node)}`,
+    `Color styles in this file: ${state.styles.colors.slice(0, 40).join("; ") || "none"}`,
+    `Text styles in this file: ${state.styles.texts.slice(0, 40).join("; ") || "none"}`,
+    "",
+    'Reply with ONLY JSON: {"explanation": "max 2 sentences", "suggestion": "max 2 sentences, one actionable fix", "confidence": "high | medium | low"}',
+  ].join("\n");
+
+  try {
+    const headers = {
+      "x-api-key": state.apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true",
+      "content-type": "application/json",
+    };
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ model: await pickModel(headers), max_tokens: 400, messages: [{ role: "user", content: prompt }] }),
+    });
+    if (res.status === 401) throw new Error("The API key was rejected. Check it in Settings.");
+    if (!res.ok) throw new Error(`The AI returned an error (${res.status}). Try again in a moment.`);
+    const data = await res.json();
+    const text = (data.content || []).filter((c) => c.type === "text").map((c) => c.text).join("");
+    const json = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1));
+    state.ai[issue.key] = {
+      status: "done",
+      explanation: String(json.explanation || "").slice(0, 400),
+      suggestion: String(json.suggestion || "").slice(0, 400),
+      confidence: ["high", "medium", "low"].includes(json.confidence) ? json.confidence : "unknown",
+    };
+  } catch (err) {
+    state.ai[issue.key] = { status: "error", message: err instanceof SyntaxError ? "The AI's answer couldn't be read. Try again." : err.message || "Couldn't reach the AI." };
+  }
+  render();
+}
+
+window.onmessage = (event) => {
+  const msg = event.data.pluginMessage;
+  if (!msg) return;
+  if (msg.type === "settings") {
+    state.apiKey = msg.apiKey; state.grid = msg.grid; state.selection = msg.selection;
+    $("key").value = msg.apiKey; $("grid").value = String(msg.grid);
+    updateScanLabel();
+  } else if (msg.type === "selection") {
+    state.selection = msg.count; updateScanLabel();
+  } else if (msg.type === "results") {
+    Object.assign(state, { issues: msg.issues, context: msg.context, styles: msg.styles, stats: msg.stats, error: "", ai: {}, open: {} });
+    if (state.filter !== "all" && !msg.issues.some((i) => i.rule === state.filter)) state.filter = "all";
+    $("status").textContent = "";
+    render();
+  } else if (msg.type === "error") {
+    state.error = msg.message; $("status").textContent = ""; render();
+  }
+};
+
+send({ type: "load-settings" });
+</script>
+</body>
+</html>

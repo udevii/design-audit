@@ -1,0 +1,13 @@
+{
+  "name": "Design Audit",
+  "id": "design-audit-local-dev",
+  "api": "1.0.0",
+  "main": "dist/code.js",
+  "ui": "src/ui.html",
+  "editorType": ["figma"],
+  "documentAccess": "dynamic-page",
+  "networkAccess": {
+    "allowedDomains": ["https://api.anthropic.com"],
+    "reasoning": "Optional. When the designer clicks \"Explain with AI\" on one issue and has added their own API key, that issue's details are sent to the Anthropic API for an explanation and a suggested fix."
+  }
+}
